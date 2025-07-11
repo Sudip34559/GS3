@@ -3,23 +3,33 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import { ApiResponse } from '../utils/apiResponce.js';
 
-export async function register(req, res) {
-    const { username, email, password } = req.body;
-    const hash = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, email, password: hash });
-    res.status(201).json(new ApiResponse(201, user, "User registered successfully"));
-}
-
 export async function login(req, res) {
     const { email, password } = req.body;
+    console.log("Login attempt:", email);
+
     const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
+        console.log("User not found");
         return res.status(401).json({ message: "Invalid credentials" });
     }
-    const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log("Password match:", isMatch);
+
+    if (!isMatch) {
+        return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (user.role === 'admin' && email !== process.env.ADMIN_EMAIL) {
+        console.log("Not authorized as admin");
+        return res.status(403).json({ message: "Not authorized as admin" });
+    }
+
+    const token = jwt.sign({ email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
     res.cookie("token", token, { httpOnly: true });
-    res.json(new ApiResponse(200, { token }, "Login successful"));
+    res.json(new ApiResponse(200, { token, role: user.role }, "Login successful"));
 }
+
 
 export function logout(req, res) {
     res.clearCookie("token");

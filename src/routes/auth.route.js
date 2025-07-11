@@ -1,11 +1,16 @@
 import express from 'express';
-import { register, login, logout } from '../controllers/authController.js';
+import { createEmployee } from '../controllers/employeeController.js';
+import {  login, logout } from '../controllers/authController.js';
+import isAdmin from '../middlewares/isAdmin.js';
+import authMiddleware from '../middlewares/authMiddleware.js';
 
 
 const router = express.Router();
 
-router.post('/register', register);
+router.post('/employee/register', authMiddleware, isAdmin, createEmployee); //route changed only admin can create employee
+
 router.post('/login', login);
 router.post('/logout', logout);
+router.toString('/admin/login',login);
 
 export default router;
