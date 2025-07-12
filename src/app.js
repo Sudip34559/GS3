@@ -19,6 +19,7 @@ import aiRoute from "./routes/ai.route.js";
 import typeRoute from "./routes/type.route.js";
 import dataRoute from "./routes/data.route.js";
 import authRoutes from "./routes/auth.route.js"
+import teamRoute from './routes/team.route.js'
 
 app.use("/api/v1/ai", aiRoute);
 app.use("/api/v1/type", typeRoute);
@@ -26,5 +27,5 @@ app.use("/api/v1/data", dataRoute);
 app.use('/api/v1/auth', authRoutes); //to test type in hit in postman localhost:8000/api/v1/auth/register
 //to test type in hit in postman localhost:8000/api/v1/auth/login(for login)
 //to test type in hit in postman localhost:8000/api/v1/auth/logout(for logout)
-
+app.use("/api/v1/team",teamRoute);
 export { app };
