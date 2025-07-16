@@ -23,6 +23,8 @@ import teamRoute from './routes/team.route.js'
 import testimonialRoute from './routes/testimonial.route.js'
 import workRoute from './routes/work.route.js'
 import workExampleRoute from './routes/workExample.route.js'
+import aboutRoutes from './routes/about.route.js'
+import contactRoute from './routes/contact.route.js'
 
 app.use("/api/v1/ai", aiRoute);
 app.use("/api/v1/type", typeRoute);
@@ -34,4 +36,6 @@ app.use("/api/v1/team",teamRoute);
 app.use("/api/v1/testimonials",testimonialRoute);
 app.use("/api/v1/work",workRoute);
 app.use('/api/v1/workExample',workExampleRoute);
+app.use("/api/v1/about",aboutRoutes);
+app.use('/api/v1/contact',contactRoute);
 export { app };
