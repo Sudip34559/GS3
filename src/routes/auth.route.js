@@ -11,6 +11,6 @@ router.post('/employee/register', authMiddleware, isAdmin, createEmployee); //ro
 
 router.post('/login', login);
 router.post('/logout', logout);
-router.toString('/admin/login',login);
+router.post('/admin/login',login);
 
 export default router;
