@@ -26,7 +26,7 @@ import workExampleRoute from './routes/workExample.route.js'
 import aboutRoutes from './routes/about.route.js'
 import contactRoute from './routes/contact.route.js'
 import caseStudyRoutes from './routes/caseStudy.route.js'
-
+import serviceRoutes from './routes/service.route.js'
 
 
 app.use("/api/v1/ai", aiRoute);
@@ -41,5 +41,6 @@ app.use("/api/v1/work",workRoute);
 app.use('/api/v1/workExample',workExampleRoute);
 app.use("/api/v1/about",aboutRoutes);
 app.use('/api/v1/contact',contactRoute);
+app.use("/api/v1/services", serviceRoutes);
 app.use("/api/v1/case-studies",caseStudyRoutes);
 export { app };
