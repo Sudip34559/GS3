@@ -15,12 +15,16 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    role:{
-        type:String,
-        enum:["admin","employee"],
-        default:"employee"
-    }
-}, { timestamps: true })
+    // --- THIS IS THE FIX ---
+    // The 'enum' restriction has been removed.
+    // The role can now be any string provided from the form.
+    role: {
+        type: String,
+        default: "employee"
+    },
+    image: { type: String }
 
-const User = mongoose.model('User',userSchema);
+}, { timestamps: true });
+
+const User = mongoose.model('User', userSchema);
 export default User;

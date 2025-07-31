@@ -10,15 +10,18 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "groq-sdk": "^0.25.0",
+    "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.0",
     "multer": "^2.0.1",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "uuid": "^11.1.0"
   }
 }

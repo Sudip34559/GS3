@@ -9,7 +9,7 @@ const teamSchema = new mongoose.Schema({
          type:String,
         required:true
     },
-    about:{
+    bio:{
          type:String,
         required:true
     },
