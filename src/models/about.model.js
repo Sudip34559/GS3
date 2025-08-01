@@ -12,16 +12,21 @@ const statSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 const timelineSchema = new mongoose.Schema({
-    year: {
-        type: String,
-        required: true
-    },
-    description: {
-        type: String,
-        required: true
-    },
-    images: [String]
-}, { timestamps: true })
+  year: {
+    type: String,
+    required: true,
+  },
+  title: {
+    type: String,
+    required: true,
+  },
+  description: {
+    type: String,
+    required: true,
+  },
+  images: [String],
+}, { timestamps: true }); 
+
 
 const aboutSchema = new mongoose.Schema({
     stats: [statSchema],

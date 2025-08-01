@@ -1,11 +1,29 @@
+// src/controllers/service.controller.js
+
 import Service from '../models/service.model.js';
 import { ApiResponse } from '../utils/apiResponce.js';
+
+/**
+ * Helper to add the full server URL to a service's image path.
+ */
+const addImageUrl = (service, req) => {
+    if (!service) return null;
+    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const obj = typeof service.toObject === 'function' ? service.toObject() : service;
+
+    if (obj.image && typeof obj.image === 'string') {
+        const cleanedPath = obj.image.replace(/\\/g, '/').replace('public/', '').replace(/^\//, '');
+        obj.image = `${serverUrl}/${cleanedPath}`;
+    }
+    return obj;
+};
 
 // GET all services
 export async function getServices(req, res) {
     try {
         const services = await Service.find();
-        res.status(200).json(new ApiResponse(200, services, "Services fetched"));
+        const servicesWithUrls = services.map(s => addImageUrl(s, req));
+        res.status(200).json(new ApiResponse(200, servicesWithUrls, "Services fetched successfully"));
     } catch (err) {
         res.status(500).json({ message: "Failed to fetch services", error: err.message });
     }
@@ -15,52 +33,59 @@ export async function getServices(req, res) {
 export async function addService(req, res) {
     try {
         const { title, description } = req.body;
-        const image = req.file?.filename;
+        const imageFile = req.file;
 
-        if (!title || !description || !image) {
-            return res.status(400).json({ message: "Title, description and image are required" });
+        if (!title || !description || !imageFile) {
+            return res.status(400).json({ message: "Title, description, and image are required" });
         }
+
+        const imagePath = `service_images/${imageFile.filename}`;
 
         const service = await Service.create({
             title,
             description,
-            image: `/service_images/${image}`
+            image: imagePath
         });
 
-        res.status(201).json(new ApiResponse(201, service, "Service created successfully"));
+        const serviceWithUrl = addImageUrl(service, req);
+        res.status(201).json(new ApiResponse(201, serviceWithUrl, "Service created successfully"));
     } catch (err) {
         res.status(500).json({ message: "Failed to create service", error: err.message });
     }
 }
 
+// PUT: Update an existing service
 export async function updateService(req, res) {
     try {
         const { id } = req.params;
         const { title, description } = req.body;
-        const image = req.file?.filename
-
-        const updateService = {
-            ...(title && { title }),
-            ...(description && { description }),
-            ...(image && { image: `/service_images/${image}` })
+        
+        const updateData = {};
+        if (title) updateData.title = title;
+        if (description) updateData.description = description;
+        if (req.file) {
+            updateData.image = `service_images/${req.file.filename}`;
         }
 
-        const updated = await Service.findByIdAndUpdate(id,updateService,{new:true})
-        res.status(200).json(new ApiResponse(200, updated, "Service updated"));
-    } catch (error) {
-        res.status(500).json({ message: "Update failed", error: err.message });
+        const updated = await Service.findByIdAndUpdate(id, updateData, { new: true });
+        if (!updated) return res.status(404).json({ message: "Service not found" });
 
+        const updatedWithUrl = addImageUrl(updated, req);
+        res.status(200).json(new ApiResponse(200, updatedWithUrl, "Service updated successfully"));
+    } catch (err) {
+        res.status(500).json({ message: "Update failed", error: err.message });
     }
 }
 
-export async function deleteService(req,res) {
+// DELETE: Remove a service
+export async function deleteService(req, res) {
     try {
-       const {id} = req.params;
-       const deleted = await Service.findOneAndDelete(id); 
+        const { id } = req.params;
+        const deleted = await Service.findByIdAndDelete(id); 
         if (!deleted) return res.status(404).json({ message: "Service not found" });
 
-        res.status(200).json(new ApiResponse(200, deleted, "Service deleted"));
-    } catch (error) {
-       res.status(500).json({ message: "Delete failed", error: err.message }); 
+        res.status(200).json(new ApiResponse(200, deleted, "Service deleted successfully"));
+    } catch (err) {
+        res.status(500).json({ message: "Delete failed", error: err.message }); 
     }
 }
