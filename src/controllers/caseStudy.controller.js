@@ -117,3 +117,87 @@ export async function addCaseStudyDetail(req, res) {
         res.status(500).json(new ApiResponse(500, null, "Failed to add detail section: " + error.message));
     }
 }
+
+export async function deleteCaseStudyDetail(req, res) {
+  try {
+    const { detailId } = req.params;
+    const detail = await CaseStudyDetail.findByIdAndDelete(detailId);
+
+    if (!detail) {
+      return res.status(404).json(new ApiResponse(404, null, "Detail not found"));
+    }
+
+    // Optionally remove the image file from the server
+    if (detail.image) {
+      const imagePath = path.join('public', detail.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+
+    res.status(200).json(new ApiResponse(200, {}, "Detail deleted successfully"));
+  } catch (error) {
+    console.error("ERROR in deleteCaseStudyDetail:", error);
+    res.status(500).json(new ApiResponse(500, null, "Failed to delete detail: " + error.message));
+  }
+}
+export async function deleteCaseStudy(req, res) {
+  try {
+    const { id } = req.params;
+    const caseStudy = await CaseStudy.findById(id);
+
+    if (!caseStudy) {
+      return res.status(404).json(new ApiResponse(404, null, "Case study not found"));
+    }
+
+    // Delete the main hero image
+    if (caseStudy.heroImage) {
+      const heroImagePath = path.join('public', caseStudy.heroImage);
+      if (fs.existsSync(heroImagePath)) {
+        fs.unlinkSync(heroImagePath);
+      }
+    }
+
+    // Find and delete all associated detail images
+    const details = await CaseStudyDetail.find({ caseStudyId: id });
+    for (const detail of details) {
+      if (detail.image) {
+        const detailImagePath = path.join('public', detail.image);
+        if (fs.existsSync(detailImagePath)) {
+          fs.unlinkSync(detailImagePath);
+        }
+      }
+    }
+
+    // Delete the database records
+    await CaseStudyDetail.deleteMany({ caseStudyId: id });
+    await CaseStudy.findByIdAndDelete(id);
+
+    // Unlink from the associated Work
+    if (caseStudy.workId) {
+        await Work.findByIdAndUpdate(caseStudy.workId, { $unset: { caseStudyId: "" } });
+    }
+
+    res.status(200).json(new ApiResponse(200, {}, "Case study and all associated details deleted successfully"));
+  } catch (error) {
+    console.error("ERROR in deleteCaseStudy:", error);
+    res.status(500).json(new ApiResponse(500, null, "Failed to delete case study: " + error.message));
+  }
+}
+export async function getCaseStudyDetails(req, res) {
+    try {
+        const { caseStudyId } = req.params;
+        const detailsDocs = await CaseStudyDetail.find({ caseStudyId: caseStudyId });
+
+        if (!detailsDocs) {
+            return res.status(404).json(new ApiResponse(404, null, "Details not found for this case study"));
+        }
+        
+        const details = detailsDocs.map(d => addImageUrl(d, req));
+        res.status(200).json(new ApiResponse(200, details, "Details fetched successfully"));
+
+    } catch (error) {
+        console.error("ERROR in getCaseStudyDetails:", error);
+        res.status(500).json(new ApiResponse(500, null, "Failed to fetch details: " + error.message));
+    }
+}
