@@ -14,7 +14,7 @@ import path from "path";
  */
 const addImageUrl = (doc, req) => {
     if (!doc) return null;
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const serverUrl = process.env.CORS_ORIGIN
     const obj = typeof doc.toObject === 'function' ? doc.toObject() : doc;
 
     const processImage = (imagePath) => {

@@ -8,7 +8,7 @@ import { ApiResponse } from '../utils/apiResponce.js';
  */
 const addImageUrl = (service, req) => {
     if (!service) return null;
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const serverUrl = process.env.CORS_ORIGIN;
     const obj = typeof service.toObject === 'function' ? service.toObject() : service;
 
     if (obj.image && typeof obj.image === 'string') {

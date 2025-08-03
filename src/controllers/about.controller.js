@@ -11,25 +11,25 @@ import path from 'path';
  * @returns {object} The About object with absolute image URLs in the timeline.
  */
 const addImageUrlsToTimeline = (aboutDoc, req) => {
-    if (!aboutDoc) return null;
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
-    const obj = aboutDoc.toObject();
+  if (!aboutDoc) return null;
+  const serverUrl = process.env.CORS_ORIGIN
+  const obj = aboutDoc.toObject();
 
-    if (obj.timeline && Array.isArray(obj.timeline)) {
-        obj.timeline = obj.timeline.map(entry => {
-            if (entry.images && Array.isArray(entry.images)) {
-                entry.images = entry.images.map(imagePath => {
-                    if (imagePath && typeof imagePath === 'string') {
-                        const cleanedPath = imagePath.replace(/\\/g, '/').replace('public/', '').replace(/^\//, '');
-                        return `${serverUrl}/${cleanedPath}`;
-                    }
-                    return imagePath;
-                });
-            }
-            return entry;
+  if (obj.timeline && Array.isArray(obj.timeline)) {
+    obj.timeline = obj.timeline.map(entry => {
+      if (entry.images && Array.isArray(entry.images)) {
+        entry.images = entry.images.map(imagePath => {
+          if (imagePath && typeof imagePath === 'string') {
+            const cleanedPath = imagePath.replace(/\\/g, '/').replace('public/', '').replace(/^\//, '');
+            return `${serverUrl}/${cleanedPath}`;
+          }
+          return imagePath;
         });
-    }
-    return obj;
+      }
+      return entry;
+    });
+  }
+  return obj;
 };
 
 // GET: Fetch About Info
@@ -85,24 +85,24 @@ export async function updateTimeline(req, res) {
   try {
     const { id } = req.params;
     const { year, title, description } = req.body;
-    
+
     const about = await About.findOne();
     if (!about) return res.status(404).json({ message: "About document not found" });
 
     const timelineEntry = about.timeline.id(id);
     if (!timelineEntry) return res.status(404).json({ message: "Timeline entry not found" });
-    
+
     timelineEntry.year = year || timelineEntry.year;
     timelineEntry.title = title || timelineEntry.title;
     timelineEntry.description = description || timelineEntry.description;
 
     // Handle new image upload if it exists
     if (req.file) {
-        // Optional: Delete old image(s) before updating
-        // ...
-        timelineEntry.images = [`about_images/${req.file.filename}`];
+      // Optional: Delete old image(s) before updating
+      // ...
+      timelineEntry.images = [`about_images/${req.file.filename}`];
     }
-    
+
     await about.save();
     res.status(200).json(new ApiResponse(200, timelineEntry, "Timeline entry updated"));
   } catch (error) {
@@ -122,20 +122,20 @@ export const deleteTimeline = async (req, res) => {
     if (!about) {
       return res.status(404).json({ message: "About document not found" });
     }
-    
+
     const entryToDelete = about.timeline.id(id);
     if (!entryToDelete) {
-        return res.status(404).json({ message: "Timeline entry not found" });
+      return res.status(404).json({ message: "Timeline entry not found" });
     }
 
     // Delete associated images from the server
     if (entryToDelete.images && Array.isArray(entryToDelete.images)) {
-        entryToDelete.images.forEach(imagePath => {
-            const fullPath = path.join(process.cwd(), 'public', imagePath);
-            if (fs.existsSync(fullPath)) {
-                fs.unlinkSync(fullPath);
-            }
-        });
+      entryToDelete.images.forEach(imagePath => {
+        const fullPath = path.join(process.cwd(), 'public', imagePath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      });
     }
 
     // Use Mongoose's pull method to remove the subdocument

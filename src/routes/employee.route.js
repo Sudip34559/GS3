@@ -7,8 +7,7 @@ import { uploadEmployee } from "../utils/upload.js";
 import { updateEmployee } from "../controllers/employeeController.js";
 const router = express.Router();
 
-// Corrected Route: POST /api/v1/employees/register
-// This now matches the base path and uses the correct uploader.
+
 router.post('/register', authMiddleware, isAdmin, uploadEmployee.single('image'), createEmployee);
 
 // GET /api/v1/employees/all

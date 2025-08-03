@@ -6,7 +6,7 @@ import path from 'path';
 
 const addImageUrl = (employee, req) => {
     if (!employee) return null;
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const serverUrl = process.env.CORS_ORIGIN;
     const obj = typeof employee.toObject === 'function' ? employee.toObject() : employee;
 
     if (obj.image && typeof obj.image === 'string') {

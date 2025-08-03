@@ -8,7 +8,7 @@ import fs from "fs";
  */
 const addImageUrl = (member, req) => {
     if (!member) return null;
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const serverUrl = process.env.CORS_ORIGIN;
     const obj = typeof member.toObject === 'function' ? member.toObject() : member;
 
     if (obj.image && typeof obj.image === 'string') {

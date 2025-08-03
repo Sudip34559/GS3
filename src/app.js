@@ -4,11 +4,16 @@ import cookieParser from "cookie-parser";
 import path from 'path';
 const app = express();
 app.use(cookieParser());
+import dotenv from "dotenv";
+
+dotenv.config({
+  path: "./.env",
+});
+
 
 app.use(
   cors({
-    // origin: "http://localhost:5173",
-    origin: process.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN, // Use the environment variable
     credentials: true,
   })
 );

@@ -3,9 +3,9 @@ import connectDB from "./db/db.js";
 import { app } from "./app.js";
 import Groq from "groq-sdk";
 
-dotenv.config({
-  path: "./.env",
-});
+// dotenv.config({
+//   path: "./.env",
+// });
 export const client = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });

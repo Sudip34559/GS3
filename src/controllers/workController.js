@@ -10,7 +10,7 @@ import { CaseStudy } from '../models/caseStudy.model.js';
  * @returns {object} The work object with added imageUrl and logoUrl properties.
  */
 const addUrlToWork = (work, req) => {
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const serverUrl = process.env.CORS_ORIGIN;
     const workObj = work.toObject();
 
     // Defensive check: Ensure 'image' is a non-empty string before processing.
@@ -116,9 +116,7 @@ export async function deleteWork(req, res) {
             return res.status(404).json(new ApiResponse(404, null, "Work not found"));
         }
 
-        // Add logic here to delete files from storage if needed
-        // fs.unlinkSync(deleted.image);
-        // fs.unlinkSync(deleted.logo);
+
 
         res.status(200).json(new ApiResponse(200, deleted, "Work deleted successfully"));
 
