@@ -22,6 +22,15 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "employee"
     },
+    status:{
+        type:String,
+        enum:["Logged In","Logged Out"],
+        default:"Logged Out"
+    },
+    lastSeen:{
+        type:Date,
+        default:Date.now,
+    },
     image: { type: String }
 
 }, { timestamps: true });

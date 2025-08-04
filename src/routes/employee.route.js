@@ -1,5 +1,5 @@
 import express from "express";
-import { createEmployee, getAllEmployee, deleteEmployee } from "../controllers/employeeController.js";
+import { createEmployee, getAllEmployee, deleteEmployee, getEmployeeStatus } from "../controllers/employeeController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import isAdmin from "../middlewares/isAdmin.js";
 // Import the correct uploader for employees
@@ -16,5 +16,5 @@ router.get("/all", authMiddleware, isAdmin, getAllEmployee);
 // NEW: Route for deleting an employee
 router.delete("/delete/:id", authMiddleware, isAdmin, deleteEmployee);
 router.put("/update/:id", authMiddleware, isAdmin, uploadEmployee.single('image'), updateEmployee);
-
+router.get("/statuses",authMiddleware,isAdmin,getEmployeeStatus);
 export default router;

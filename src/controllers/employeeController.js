@@ -137,3 +137,13 @@ export async function updateEmployee(req, res) {
         res.status(500).json({ message: "Failed to update employee", error: error.message });
     }
 }
+
+export async function getEmployeeStatus(req,res){
+    try {
+        const employee = await User.find({role:{$ne:'admin'}}).select('name role,status imageUrl lastSeen')
+
+        res.status(200).json(new ApiResponse(200,employees,"Employee status fetched successfully"))
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching employee statuses", error: error.message });
+    }
+}
