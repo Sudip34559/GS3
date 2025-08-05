@@ -6,13 +6,11 @@ import path from 'path';
 
 /**
  * Helper to add full server URLs to all images within the timeline array.
- * @param {object} aboutDoc - The Mongoose document for the About page.
- * @param {object} req - The Express request object.
- * @returns {object} The About object with absolute image URLs in the timeline.
  */
 const addImageUrlsToTimeline = (aboutDoc, req) => {
   if (!aboutDoc) return null;
-  const serverUrl = process.env.CORS_ORIGIN
+  // Use the correct environment variable for the backend's public URL.
+  const serverUrl = process.env.BACKEND_URL;
   const obj = aboutDoc.toObject();
 
   if (obj.timeline && Array.isArray(obj.timeline)) {
@@ -20,7 +18,8 @@ const addImageUrlsToTimeline = (aboutDoc, req) => {
       if (entry.images && Array.isArray(entry.images)) {
         entry.images = entry.images.map(imagePath => {
           if (imagePath && typeof imagePath === 'string') {
-            const cleanedPath = imagePath.replace(/\\/g, '/').replace('public/', '').replace(/^\//, '');
+            // The path from the DB will now be correct, so we just clean the slashes.
+            const cleanedPath = imagePath.replace(/\\/g, '/');
             return `${serverUrl}/${cleanedPath}`;
           }
           return imagePath;
@@ -38,9 +37,7 @@ export async function getAbout(req, res) {
     const aboutDoc = await About.findOne();
     if (!aboutDoc) return res.status(404).json({ message: "About info not found" });
 
-    // Add full image URLs before sending the response
     const aboutWithImageUrls = addImageUrlsToTimeline(aboutDoc, req);
-
     res.status(200).json(new ApiResponse(200, aboutWithImageUrls, "About data fetched"));
   } catch (err) {
     res.status(500).json({ message: "Error fetching about info", error: err.message });
@@ -65,8 +62,9 @@ export async function updateStats(req, res) {
 export async function addTimeline(req, res) {
   try {
     const { year, title, description } = req.body;
-    // CORRECTED PATH: Use 'about_images' to match the multer config
-    const images = req.files?.map(file => `about_images/${file.filename}`) || [];
+    
+    // FIX: Use the full path from Multer (req.files)
+    const images = req.files?.map(file => file.path.replace(/\\/g, '/')) || [];
 
     if (!year || !title || !description || images.length === 0) {
       return res.status(400).json({ message: "Year, title, description and images are required" });
@@ -96,11 +94,18 @@ export async function updateTimeline(req, res) {
     timelineEntry.title = title || timelineEntry.title;
     timelineEntry.description = description || timelineEntry.description;
 
-    // Handle new image upload if it exists
-    if (req.file) {
-      // Optional: Delete old image(s) before updating
-      // ...
-      timelineEntry.images = [`about_images/${req.file.filename}`];
+    // Handle new image uploads if they exist
+    if (req.files && req.files.length > 0) {
+      // Delete old images from the server
+      if (timelineEntry.images && Array.isArray(timelineEntry.images)) {
+        timelineEntry.images.forEach(imagePath => {
+          if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath);
+          }
+        });
+      }
+      // FIX: Save the new full paths from Multer
+      timelineEntry.images = req.files.map(file => file.path.replace(/\\/g, '/'));
     }
 
     await about.save();
@@ -128,17 +133,15 @@ export const deleteTimeline = async (req, res) => {
       return res.status(404).json({ message: "Timeline entry not found" });
     }
 
-    // Delete associated images from the server
+    // FIX: Use the full path from the DB to delete files
     if (entryToDelete.images && Array.isArray(entryToDelete.images)) {
       entryToDelete.images.forEach(imagePath => {
-        const fullPath = path.join(process.cwd(), 'public', imagePath);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
         }
       });
     }
 
-    // Use Mongoose's pull method to remove the subdocument
     about.timeline.pull({ _id: id });
     await about.save();
 

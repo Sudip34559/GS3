@@ -1,42 +1,39 @@
 import Work from '../models/work.model.js';
 import { ApiResponse } from '../utils/apiResponce.js';
-import { CaseStudy } from '../models/caseStudy.model.js';
+import fs from 'fs';
+import path from 'path';
 
 /**
- * A robust helper function to safely construct full image and logo URLs.
- * It checks if the path exists and is a string before processing.
- * @param {object} work - The Mongoose document for a work/project.
- * @param {object} req - The Express request object to get the server's base URL.
- * @returns {object} The work object with added imageUrl and logoUrl properties.
+ * Helper function to construct full image URLs.
+ * It correctly prepends the backend URL to the path stored in the database.
  */
 const addUrlToWork = (work, req) => {
-    const serverUrl = process.env.CORS_ORIGIN;
+    const serverUrl = process.env.BACKEND_URL;
     const workObj = work.toObject();
 
-    // Defensive check: Ensure 'image' is a non-empty string before processing.
+    // This logic assumes the full path (e.g., "public/work_images/...") is stored in the DB.
     if (workObj.image && typeof workObj.image === 'string') {
-        const imagePath = workObj.image.replace(/\\/g, '/').replace('public/', '');
+        const imagePath = workObj.image.replace(/\\/g, '/');
         workObj.imageUrl = `${serverUrl}/${imagePath}`;
     }
 
-    // Defensive check: Ensure 'logo' is a non-empty string before processing.
     if (workObj.logo && typeof workObj.logo === 'string') {
-        const logoPath = workObj.logo.replace(/\\/g, '/').replace('public/', '');
+        const logoPath = workObj.logo.replace(/\\/g, '/');
         workObj.logoUrl = `${serverUrl}/${logoPath}`;
     }
 
     return workObj;
 };
 
-// --- CRUD Functions ---
-
 export async function createWork(req, res) {
     try {
         const { title, liveLink, caseStudyLink, isSelected } = req.body;
-        const logo = req.files?.logo?.[0]?.path || null;
-        const image = req.files?.image?.[0]?.path || null;
+        
+        // Use the full path from Multer, which includes "public/".
+        const logoPath = req.files?.logo?.[0]?.path.replace(/\\/g, '/') || null;
+        const imagePath = req.files?.image?.[0]?.path.replace(/\\/g, '/') || null;
 
-        if (!title || !image) {
+        if (!title || !imagePath) {
             return res.status(400).json(new ApiResponse(400, null, "Title and Image are required"));
         }
 
@@ -44,10 +41,10 @@ export async function createWork(req, res) {
 
         const work = await Work.create({
             title,
-            image,
-            logo,
+            image: imagePath,
+            logo: logoPath,
             liveLink,
-            caseStudyLink, // Note: This field is on the model but not used in the final logic
+            caseStudyLink,
             isSelected: selected
         });
 
@@ -65,7 +62,6 @@ export async function getAllWorks(req, res) {
         const works = await Work.find().sort({ createdAt: -1 }).populate('caseStudyId', '_id');
         const worksWithUrls = works.map(work => addUrlToWork(work, req));
         res.status(200).json(new ApiResponse(200, worksWithUrls, "All works fetched successfully"));
-
     } catch (error) {
         console.error("ERROR in getAllWorks:", error);
         res.status(500).json(new ApiResponse(500, null, "Failed to fetch works: " + error.message));
@@ -77,6 +73,11 @@ export async function updateWork(req, res) {
         const { id } = req.params;
         const { title, liveLink, caseStudyLink, isSelected } = req.body;
 
+        const workToUpdate = await Work.findById(id);
+        if (!workToUpdate) {
+            return res.status(404).json(new ApiResponse(404, null, "Work not found"));
+        }
+
         const updateData = {};
         if (title) updateData.title = title;
         if (liveLink) updateData.liveLink = liveLink;
@@ -84,20 +85,24 @@ export async function updateWork(req, res) {
         if (isSelected !== undefined) {
             updateData.isSelected = isSelected === 'true';
         }
-
-        if (req.files?.logo?.[0]?.path) {
-            updateData.logo = req.files.logo[0].path;
+        
+        // Handle logo update: delete old, save new
+        if (req.files?.logo?.[0]) {
+            if (workToUpdate.logo && fs.existsSync(workToUpdate.logo)) {
+                fs.unlinkSync(workToUpdate.logo);
+            }
+            updateData.logo = req.files.logo[0].path.replace(/\\/g, '/');
         }
-        if (req.files?.image?.[0]?.path) {
-            updateData.image = req.files.image[0].path;
+
+        // Handle image update: delete old, save new
+        if (req.files?.image?.[0]) {
+            if (workToUpdate.image && fs.existsSync(workToUpdate.image)) {
+                fs.unlinkSync(workToUpdate.image);
+            }
+            updateData.image = req.files.image[0].path.replace(/\\/g, '/');
         }
 
         const updated = await Work.findByIdAndUpdate(id, updateData, { new: true });
-
-        if (!updated) {
-            return res.status(404).json(new ApiResponse(404, null, "Work not found"));
-        }
-
         const workWithUrl = addUrlToWork(updated, req);
         res.status(200).json(new ApiResponse(200, workWithUrl, "Work updated successfully"));
 
@@ -110,15 +115,28 @@ export async function updateWork(req, res) {
 export async function deleteWork(req, res) {
     try {
         const { id } = req.params;
-        const deleted = await Work.findByIdAndDelete(id);
-
-        if (!deleted) {
+        
+        // --- THIS IS THE FIX ---
+        // First, find the document to get the file paths.
+        const workToDelete = await Work.findById(id);
+        if (!workToDelete) {
             return res.status(404).json(new ApiResponse(404, null, "Work not found"));
         }
 
+        // Delete the image file from the server if it exists.
+        if (workToDelete.image && fs.existsSync(workToDelete.image)) {
+            fs.unlinkSync(workToDelete.image);
+        }
 
+        // Delete the logo file from the server if it exists.
+        if (workToDelete.logo && fs.existsSync(workToDelete.logo)) {
+            fs.unlinkSync(workToDelete.logo);
+        }
 
-        res.status(200).json(new ApiResponse(200, deleted, "Work deleted successfully"));
+        // Finally, delete the document from the database.
+        await Work.findByIdAndDelete(id);
+
+        res.status(200).json(new ApiResponse(200, {}, "Work deleted successfully"));
 
     } catch (error) {
         console.error("ERROR in deleteWork:", error);

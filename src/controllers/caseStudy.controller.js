@@ -5,26 +5,20 @@ import fs from "fs";
 import path from "path";
 
 /**
- * A robust helper function to safely construct full image URLs.
- * It now handles both Mongoose documents and plain JavaScript objects,
- * and correctly removes the 'public/' prefix from paths.
- * @param {object} doc - The Mongoose document or a plain object.
- * @param {object} req - The Express request object.
- * @returns {object} The document as a plain object with absolute image URLs.
+ * Helper function to construct full image URLs for case study documents.
  */
 const addImageUrl = (doc, req) => {
     if (!doc) return null;
-    const serverUrl = process.env.CORS_ORIGIN
+    const serverUrl = process.env.BACKEND_URL;
     const obj = typeof doc.toObject === 'function' ? doc.toObject() : doc;
 
     const processImage = (imagePath) => {
         if (imagePath && typeof imagePath === 'string') {
-            // --- THIS IS THE FIX ---
-            // This now correctly removes 'public/' from the path, ensuring a valid URL.
-            const cleanedPath = imagePath.replace(/\\/g, '/').replace('public/', '').replace(/^\//, '');
+            // This ensures the path uses forward slashes for the URL
+            const cleanedPath = imagePath.replace(/\\/g, '/');
             return `${serverUrl}/${cleanedPath}`;
         }
-        return null;
+        return imagePath; // Return original if not a string
     };
 
     if (obj.heroImage) obj.heroImage = processImage(obj.heroImage);
@@ -44,7 +38,7 @@ export async function getCaseStudyById(req, res) {
         const detailsDocs = await CaseStudyDetail.find({ caseStudyId: caseStudyDoc._id });
 
         const relatedProjectsDocs = await Work.find({ 
-            _id: { $ne: caseStudyDoc.workId._id }
+            _id: { $ne: caseStudyDoc.workId?._id } // Added safe navigation
         }).select('_id title image caseStudyId');
 
         const caseStudy = addImageUrl(caseStudyDoc, req);
@@ -53,7 +47,7 @@ export async function getCaseStudyById(req, res) {
         const relatedProjects = relatedProjectsDocs.map(p => {
             const projectObj = p.toObject();
             if (projectObj.image) {
-                // The addImageUrl helper will now correctly format the URL
+                // Use the main addImageUrl helper for consistency
                 projectObj.imageUrl = addImageUrl({ image: projectObj.image }, req).image;
                 delete projectObj.image;
             }
@@ -67,20 +61,26 @@ export async function getCaseStudyById(req, res) {
     }
 }
 
-// ... other functions remain the same ...
 export async function createCaseStudy(req, res) {
     try {
         const { workId, title, tagline, description, team, result } = req.body;
-        const heroImage = req.file ? `case_study_images/${req.file.filename}` : null;
-        if (!workId || !title || !description || !heroImage) {
+        
+        // FIX: Use the full path from Multer (req.file.path)
+        const heroImagePath = req.file ? req.file.path.replace(/\\/g, '/') : null;
+
+        if (!workId || !title || !description || !heroImagePath) {
             return res.status(400).json(new ApiResponse(400, null, "Work ID, title, description, and hero image are required"));
         }
         const slug = title.toLowerCase().replace(/\s+/g, "-") + '-' + Date.now();
-        const caseStudy = await CaseStudy.create({
-            workId, title, tagline, description, heroImage, team: JSON.parse(team || '[]'), result, slug
+        
+        const caseStudyDoc = await CaseStudy.create({
+            workId, title, tagline, description, heroImage: heroImagePath, team: JSON.parse(team || '[]'), result, slug
         });
-        await Work.findByIdAndUpdate(workId, { caseStudyId: caseStudy._id });
-        res.status(201).json(new ApiResponse(201, caseStudy, "Case Study created successfully"));
+
+        await Work.findByIdAndUpdate(workId, { caseStudyId: caseStudyDoc._id });
+        
+        const caseStudyWithUrl = addImageUrl(caseStudyDoc, req);
+        res.status(201).json(new ApiResponse(201, caseStudyWithUrl, "Case Study created successfully"));
     } catch (error) {
         console.error("ERROR in createCaseStudy:", error);
         res.status(500).json(new ApiResponse(500, null, "Failed to create case study: " + error.message));
@@ -101,15 +101,18 @@ export async function getAllCaseStudies(req, res) {
 export async function addCaseStudyDetail(req, res) {
     try {
         const { caseStudyId, title, description } = req.body;
-        const image = req.file ? `case_study_images/${req.file.filename}` : null;
-        if (!caseStudyId || !title || !description || !image) {
-            return res.status(400).json(new ApiResponse(400, null, "All credentials required"));
+        
+        // FIX: Use the full path from Multer (req.file.path)
+        const imagePath = req.file ? req.file.path.replace(/\\/g, '/') : null;
+
+        if (!caseStudyId || !title || !description || !imagePath) {
+            return res.status(400).json(new ApiResponse(400, null, "All fields and an image are required"));
         }
         const caseStudyExists = await CaseStudy.findById(caseStudyId);
         if (!caseStudyExists) {
             return res.status(404).json(new ApiResponse(404, null, "Case Study not found"));
         }
-        const detailDoc = await CaseStudyDetail.create({ caseStudyId, title, description, image });
+        const detailDoc = await CaseStudyDetail.create({ caseStudyId, title, description, image: imagePath });
         const detailWithUrl = addImageUrl(detailDoc, req);
         res.status(201).json(new ApiResponse(201, detailWithUrl, "Detail section added successfully"));
     } catch (error) {
@@ -127,12 +130,9 @@ export async function deleteCaseStudyDetail(req, res) {
       return res.status(404).json(new ApiResponse(404, null, "Detail not found"));
     }
 
-    // Optionally remove the image file from the server
-    if (detail.image) {
-      const imagePath = path.join('public', detail.image);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
+    // FIX: Use the full path from the DB to delete the file
+    if (detail.image && fs.existsSync(detail.image)) {
+        fs.unlinkSync(detail.image);
     }
 
     res.status(200).json(new ApiResponse(200, {}, "Detail deleted successfully"));
@@ -141,6 +141,7 @@ export async function deleteCaseStudyDetail(req, res) {
     res.status(500).json(new ApiResponse(500, null, "Failed to delete detail: " + error.message));
   }
 }
+
 export async function deleteCaseStudy(req, res) {
   try {
     const { id } = req.params;
@@ -150,30 +151,21 @@ export async function deleteCaseStudy(req, res) {
       return res.status(404).json(new ApiResponse(404, null, "Case study not found"));
     }
 
-    // Delete the main hero image
-    if (caseStudy.heroImage) {
-      const heroImagePath = path.join('public', caseStudy.heroImage);
-      if (fs.existsSync(heroImagePath)) {
-        fs.unlinkSync(heroImagePath);
-      }
+    // FIX: Use the full path from the DB to delete the file
+    if (caseStudy.heroImage && fs.existsSync(caseStudy.heroImage)) {
+        fs.unlinkSync(caseStudy.heroImage);
     }
 
-    // Find and delete all associated detail images
     const details = await CaseStudyDetail.find({ caseStudyId: id });
     for (const detail of details) {
-      if (detail.image) {
-        const detailImagePath = path.join('public', detail.image);
-        if (fs.existsSync(detailImagePath)) {
-          fs.unlinkSync(detailImagePath);
-        }
+      if (detail.image && fs.existsSync(detail.image)) {
+          fs.unlinkSync(detail.image);
       }
     }
 
-    // Delete the database records
     await CaseStudyDetail.deleteMany({ caseStudyId: id });
     await CaseStudy.findByIdAndDelete(id);
 
-    // Unlink from the associated Work
     if (caseStudy.workId) {
         await Work.findByIdAndUpdate(caseStudy.workId, { $unset: { caseStudyId: "" } });
     }
@@ -184,6 +176,7 @@ export async function deleteCaseStudy(req, res) {
     res.status(500).json(new ApiResponse(500, null, "Failed to delete case study: " + error.message));
   }
 }
+
 export async function getCaseStudyDetails(req, res) {
     try {
         const { caseStudyId } = req.params;

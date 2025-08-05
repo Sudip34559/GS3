@@ -26,7 +26,7 @@ export async function login(req, res) {
         return res.status(403).json({ message: "Not authorized as admin" });
     }
     user.status = "Logged In"
-    user.lastSeen = new Date.now();
+    // user.lastSeen = new Date.now();
     await user.save();
     const token = jwt.sign({ email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
     res.cookie("token", token, { httpOnly: true });
@@ -43,4 +43,9 @@ export async function logout(req, res) {
     }
     res.clearCookie("token");
     res.json(new ApiResponse(200, null, "Logged out successfully"));
+}
+export async function verifyToken(req, res) {
+  // If the authMiddleware passes, it attaches the user to req.user.
+  // We just need to send that user data back to the frontend.
+  return res.status(200).json(new ApiResponse(200, { user: req.user }, "Token is valid."));
 }
