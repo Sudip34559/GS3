@@ -4,22 +4,23 @@ import cookieParser from "cookie-parser";
 import path from 'path';
 const app = express();
 app.use(cookieParser());
+import dotenv from "dotenv";
+
+dotenv.config({
+  path: "./.env",
+});
+
 
 app.use(
   cors({
-    // origin: "http://localhost:5173",
-    origin: process.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN, // Use the environment variable
     credentials: true,
   })
 );
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-app.use('/employee_images', express.static('public/employee_images'));
-app.use('/case_study_images', express.static('public/case_study_images'));
 
-
-
-app.use(express.static("public"));
+app.use('/public', express.static('public'));
 
 
 import aiRoute from "./routes/ai.route.js";

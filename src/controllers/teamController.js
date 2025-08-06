@@ -8,11 +8,13 @@ import fs from "fs";
  */
 const addImageUrl = (member, req) => {
     if (!member) return null;
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    // Uses the correct environment variable for the backend's public URL.
+    const serverUrl = process.env.BACKEND_URL;
     const obj = typeof member.toObject === 'function' ? member.toObject() : member;
 
     if (obj.image && typeof obj.image === 'string') {
-        const cleanedPath = obj.image.replace(/\\/g, '/').replace('public/', '').replace(/^\//, '');
+        // The path from the DB will now be correct, so we just clean the slashes.
+        const cleanedPath = obj.image.replace(/\\/g, '/');
         obj.image = `${serverUrl}/${cleanedPath}`;
     }
     return obj;
@@ -21,8 +23,10 @@ const addImageUrl = (member, req) => {
 export const createTeamMember = async (req, res) => {
     try {
         const { name, position, bio, github, linkedin } = req.body;
-        // Save the path without 'public/' for consistency
-        const imagePath = req.file ? `employee_images/${req.file.filename}` : "";
+        
+        // FIX: Use the full path from Multer (req.file.path).
+        // This will be "public/employee_images/your-file-name.png".
+        const imagePath = req.file ? req.file.path.replace(/\\/g, '/') : "";
 
         if (!name || !position || !bio || !imagePath) {
             return res.status(400).json({ message: "Name, position, bio, and image are required" });
@@ -43,8 +47,6 @@ export const createTeamMember = async (req, res) => {
 export async function getAllTeamMembers(req, res) {
     try {
         const members = await Team.find().sort({ createdAt: -1 });
-        // --- THIS IS THE FIX ---
-        // Map over the members and add the full image URL to each one.
         const membersWithUrls = members.map(member => addImageUrl(member, req));
         res.status(200).json(new ApiResponse(200, membersWithUrls, "All Team Members fetched successfully"));
     } catch (error) {
@@ -62,9 +64,9 @@ export const deleteTeamMember = async (req, res) => {
         }
 
         if (member.image) {
-            const imagePath = path.join(process.cwd(), 'public', member.image);
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
+            // The path in the DB is now correct, so we can delete the file directly.
+            if (fs.existsSync(member.image)) {
+                fs.unlinkSync(member.image);
             }
         }
         return res.status(200).json({ message: "Team member deleted successfully" });
@@ -82,7 +84,8 @@ export const updateTeamMember = async (req, res) => {
         const updateData = { name, position, bio, github, linkedin };
 
         if (req.file) {
-            updateData.image = `employee_images/${req.file.filename}`;
+            // FIX: Use the full path from Multer for updates as well.
+            updateData.image = req.file.path.replace(/\\/g, '/');
         }
 
         const updatedMember = await Team.findByIdAndUpdate(id, updateData, { new: true });
