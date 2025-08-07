@@ -4,17 +4,16 @@ import { ApiResponse } from '../utils/apiResponce.js';
 import fs from 'fs';
 import path from 'path';
 
+
 const addImageUrl = (employee, req) => {
     if (!employee) return null;
-    // 1. FIX: Use the correct environment variable for the backend's public URL.
     const serverUrl = process.env.BACKEND_URL;
     const obj = typeof employee.toObject === 'function' ? employee.toObject() : employee;
 
     if (obj.image && typeof obj.image === 'string') {
-        // This regex correctly replaces all backslashes with forward slashes.
         const cleanedPath = obj.image.replace(/\\/g, '/');
-        // The path from the DB now includes 'public', so the URL will be correct.
-        obj.image = `${serverUrl}/${cleanedPath}`;
+
+        obj.imageUrl = `${serverUrl}/${cleanedPath}`;
     }
     return obj;
 };
@@ -39,7 +38,7 @@ export async function createEmployee(req, res) {
 
         const hashed = await bcrypt.hash(password, 10);
 
-        // 2. FIX: Save the full, correct path from multer, including 'public/'.
+
         const imagePath = req.file ? req.file.path.replace(/\\/g, '/') : undefined;
 
         const employee = await User.create({
@@ -79,11 +78,9 @@ export async function deleteEmployee(req, res) {
             return res.status(404).json({ message: "Employee not found" });
         }
 
-        if (employee.image) {
-            // The path in the DB is now correct, so we can delete the file directly.
-            if (fs.existsSync(employee.image)) {
-                fs.unlinkSync(employee.image);
-            }
+
+        if (employee.image && fs.existsSync(employee.image)) {
+            fs.unlinkSync(employee.image);
         }
 
         res.status(200).json(new ApiResponse(200, null, "Employee deleted successfully"));
@@ -92,7 +89,6 @@ export async function deleteEmployee(req, res) {
         res.status(500).json({ message: 'Error deleting employee' });
     }
 }
-
 export async function updateEmployee(req, res) {
     try {
         const { id } = req.params;
@@ -117,10 +113,10 @@ export async function updateEmployee(req, res) {
         employee.role = role || employee.role;
 
         if (req.file) {
+
             if (employee.image && fs.existsSync(employee.image)) {
                 fs.unlinkSync(employee.image);
             }
-            // 3. FIX: Save the full, correct path for updates as well.
             employee.image = req.file.path.replace(/\\/g, '/');
         }
 
@@ -135,11 +131,13 @@ export async function updateEmployee(req, res) {
     }
 }
 
-export async function getEmployeeStatus(req, res) {
+export async function getEmployeeStatus(req, res){
     try {
-        const employees = await User.find({ role: { $ne: 'admin' } }).select('name role status imageUrl lastSeen');
-        res.status(200).json(new ApiResponse(200, employees, "Employee status fetched successfully"));
+        const employees = await User.find({role:{$ne:'admin'}}).select('username name role status image lastSeen')
+        const employeesWithUrls = employees.map(emp => addImageUrl(emp, req));
+        res.status(200).json(new ApiResponse(200, employeesWithUrls, "Employee statuses fetched successfully"));
     } catch (error) {
         res.status(500).json({ message: "Error fetching employee statuses", error: error.message });
     }
 }
+
