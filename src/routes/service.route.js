@@ -9,7 +9,7 @@ import authMiddleware from '../middlewares/authMiddleware.js';
 const router = express.Router();
 
 router.get('/', getServices);
-router.post('/addservices', authMiddleware, isAdmin, uploadService.single('image'), addService);
+router.post('/add', authMiddleware, isAdmin, uploadService.single('image'), addService);
 router.put('/update/:id', authMiddleware, isAdmin, uploadService.single('image'), updateService);
 router.delete('/delete/:id', authMiddleware, isAdmin, deleteService);
 
