@@ -13,7 +13,9 @@ const addImageUrl = (employee, req) => {
     if (obj.image && typeof obj.image === 'string') {
         const cleanedPath = obj.image.replace(/\\/g, '/');
 
-        obj.imageUrl = `${serverUrl}/${cleanedPath}`;
+        // --- THIS IS THE FIX ---
+        // Overwrite the original 'image' property with the full URL.
+        obj.image = `${serverUrl}/${cleanedPath}`;
     }
     return obj;
 };
@@ -140,4 +142,3 @@ export async function getEmployeeStatus(req, res){
         res.status(500).json({ message: "Error fetching employee statuses", error: error.message });
     }
 }
-
