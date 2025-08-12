@@ -24,8 +24,6 @@ export async function login(req, res) {
     user.lastSeen = new Date(); // Corrected this line
     await user.save();
     
-    // --- THIS IS THE FIX ---
-    // The JWT payload now includes the user's _id, which the authMiddleware needs.
     const token = jwt.sign(
         { _id: user._id, email: user.email, role: user.role },
         process.env.JWT_SECRET,
@@ -37,7 +35,6 @@ export async function login(req, res) {
         secure: process.env.NODE_ENV === 'production',
     });
 
-    // We don't need to send the token back in the body, the cookie is enough.
     res.json(new ApiResponse(200, { role: user.role }, "Login successful"));
 }
 
@@ -52,7 +49,6 @@ export async function logout(req, res) {
 }
 
 export async function verifyToken(req, res) {
-  // If the authMiddleware passes, it attaches the user to req.user.
-  // We just need to send that user data back to the frontend.
+
   return res.status(200).json(new ApiResponse(200, { user: req.user }, "Token is valid."));
 }
